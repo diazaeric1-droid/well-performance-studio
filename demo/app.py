@@ -34,7 +34,7 @@ for _p in (_HERE, _REPO_ROOT):
 # commit -> AttributeError (e.g. theme.how_to). Drop their bytecode + evict the cached
 # modules so the imports below reload from the CURRENT commit's source.
 import shutil as _sh_heal
-_sh_heal.rmtree(Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
+_sh_heal.rmtree(os.path.join(_HERE, "__pycache__"), ignore_errors=True)
 for _stale in ("theme", "fleet_registry"):
     sys.modules.pop(_stale, None)
 
