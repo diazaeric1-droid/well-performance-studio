@@ -28,6 +28,16 @@ for _p in (_HERE, _REPO_ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# --- warm-container module self-heal (vendored top-level modules) -----------
+# Streamlit Cloud reuses the container across redeploys; a cached OLD `theme` /
+# `fleet_registry` in sys.modules (or a stale .pyc) lacks symbols added in a newer
+# commit -> AttributeError (e.g. theme.how_to). Drop their bytecode + evict the cached
+# modules so the imports below reload from the CURRENT commit's source.
+import shutil as _sh_heal
+_sh_heal.rmtree(Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
+for _stale in ("theme", "fleet_registry"):
+    sys.modules.pop(_stale, None)
+
 import theme  # vendored, next to this file
 from src import __version__
 from src.curves import CurveInputs, arps_overlay, production_curve
