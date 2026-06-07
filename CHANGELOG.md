@@ -3,6 +3,12 @@
 All notable changes to Well Performance Studio are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [0.2.1] — 2026-06-07
+### Fixed
+- CI smoke workflow now installs `pytest` (the unit-tests step was failing with `pytest: command not found`).
+### Changed
+- **Light theme** — suite-wide migration from dark/navy to a professional light palette (white surfaces, `plotly_white` charts, navy/blue accents retained); transparent fixed header so the title never clips. `runtime.txt` pinned to Python 3.11.
+
 ## [0.2.0] — 2026-06-07
 
 Nodal (systems) analysis + artificial-lift design — two new tabs, both deterministic and
