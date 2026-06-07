@@ -99,7 +99,21 @@ theme.data_badge(
     "real-well data. RTA can ingest a real rate series.",
 )
 
-with st.expander("What is this?"):
+theme.how_to(
+    "- **PVT** — set fluid inputs (oil °API, gas SG, solution GOR, temperature, "
+    "pressure range) to chart Bo, Rs, viscosity, and z-factor vs. pressure.\n"
+    "- **Physics Production Curve** — set reservoir/fluid/completion inputs (initial & "
+    "flowing pressure, movable gas in place, τ) for a bluebonnet rate-time & cumulative "
+    "forecast + EUR, with an optional Arps overlay.\n"
+    "- **RTA** — load a rate series (synthetic or your own CSV) to fit the physics model "
+    "and back out resource-in-place (M) and time-to-BDF (τ), then forecast EUR.\n"
+    "- **Nodal** — set reservoir, tubing, and fluid inputs; the operating point is where "
+    "the IPR (inflow) meets the VLP (outflow).\n"
+    "- **Artificial Lift** — set a target rate the well can't reach naturally to size an "
+    "ESP (stages, frequency, TDH, power) and sweep gas-lift injection."
+)
+
+with st.expander("What Is This?"):
     st.markdown(
         """
 **Well Performance Studio** is the *Design* (forward-modeling) app of the Upstream
@@ -126,12 +140,19 @@ Everything is **deterministic** and needs **no API key**. An optional Claude nar
 _api_key = _byok_sidebar()
 
 tab_pvt, tab_curve, tab_rta, tab_nodal, tab_lift = st.tabs(
-    ["PVT", "Physics production curve", "RTA", "Nodal", "Artificial Lift"]
+    ["PVT", "Physics Production Curve", "RTA", "Nodal", "Artificial Lift"]
 )
 
 # ============================================================================ PVT tab
 with tab_pvt:
-    st.subheader("PVT — fluid properties vs. pressure")
+    st.subheader("PVT — Fluid Properties vs. Pressure")
+    theme.how_to(
+        "- Black-oil & gas fluid properties vs. pressure from standard correlations.\n"
+        "- Set the oil gravity (°API), gas specific gravity, solution GOR (Rs), reservoir "
+        "temperature, pressure range, and gas dryness in the controls below.\n"
+        "- Charts give the oil/water/gas FVF, viscosities, and z-factor; the bubble point "
+        "is marked, and the table reports every property at a pressure you pick."
+    )
     c1, c2, c3 = st.columns(3)
     with c1:
         api = st.slider("Oil gravity (°API)", 15.0, 55.0, 38.0, 0.5)
@@ -174,7 +195,7 @@ with tab_pvt:
         if pb >= p_lo and pb <= p_hi:
             fig.add_vline(x=pb, line_dash="dot", line_color=theme.AMBER)
         fig.update_layout(
-            title="Formation volume factors", xaxis_title="Pressure (psia)",
+            title="Formation Volume Factors", xaxis_title="Pressure (psia)",
             yaxis_title="FVF (rb/stb)",
         )
         st.plotly_chart(theme.style_fig(fig, height=320), width="stretch")
@@ -182,7 +203,7 @@ with tab_pvt:
         figz = go.Figure()
         figz.add_scatter(x=df["pressure"], y=df["z_factor"], name="z-factor")
         figz.update_layout(
-            title="Gas z-factor (DAK)", xaxis_title="Pressure (psia)",
+            title="Gas Z-Factor (DAK)", xaxis_title="Pressure (psia)",
             yaxis_title="z (-)",
         )
         st.plotly_chart(theme.style_fig(figz, height=300), width="stretch")
@@ -195,7 +216,7 @@ with tab_pvt:
             x=df["pressure"], y=df["water_viscosity"], name="μ_water (cP)"
         )
         figv.update_layout(
-            title="Oil & water viscosity", xaxis_title="Pressure (psia)",
+            title="Oil & Water Viscosity", xaxis_title="Pressure (psia)",
             yaxis_title="Viscosity (cP)",
         )
         st.plotly_chart(theme.style_fig(figv, height=320), width="stretch")
@@ -206,13 +227,13 @@ with tab_pvt:
             x=df["pressure"], y=df["Bg"], name="Bg (gas FVF, rcf/scf)", yaxis="y2"
         )
         figg.update_layout(
-            title="Gas viscosity & FVF", xaxis_title="Pressure (psia)",
+            title="Gas Viscosity & FVF", xaxis_title="Pressure (psia)",
             yaxis_title="μ_gas (cP)",
             yaxis2=dict(title="Bg (rcf/scf)", overlaying="y", side="right"),
         )
         st.plotly_chart(theme.style_fig(figg, height=300), width="stretch")
 
-    st.markdown("**Properties at a chosen pressure**")
+    st.markdown("**Properties at a Chosen Pressure**")
     p_at = st.slider(
         "Evaluate at pressure (psia)", int(p_lo), int(p_hi),
         int((p_lo + p_hi) / 2), 50,
@@ -235,6 +256,11 @@ with tab_pvt:
         prop_df.style.format({"Value": "{:,.4f}"}),
         width="stretch", hide_index=True,
     )
+    theme.source_note(
+        "Black-oil & gas PVT correlations (Standing; Vázquez–Beggs; Dranchuk–Abou-Kassem "
+        "z-factor) via bluebonnet. Pressure in psia; FVF in rb/stb (Bg in rcf/scf); "
+        "viscosity in cP; Rs in scf/bbl."
+    )
 
     _maybe_narrate(
         _api_key,
@@ -245,13 +271,23 @@ with tab_pvt:
         "Interpret PVT",
     )
 
+    theme.references(["pvt", "bluebonnet"])
+
 # ============================================================ Physics production curve
 with tab_curve:
-    st.subheader("Physics production curve — bluebonnet scaling solution")
+    st.subheader("Physics Production Curve — bluebonnet Scaling Solution")
     st.caption(
         "1-D pseudopressure-diffusion solve for a fracture-dominated gas well. The "
         "dimensionless recovery curve is scaled to a real well by the movable gas in "
         "place (M) and time-to-boundary-dominated-flow (τ)."
+    )
+    theme.how_to(
+        "- A first-principles rate-time & cumulative forecast from bluebonnet's scaling "
+        "solution — no decline fit required.\n"
+        "- Set the fluid (gas SG, temperature, dryness), initial & flowing-BHP pressures, "
+        "movable gas in place, time-to-BDF (τ), and forecast horizon below.\n"
+        "- Read off EUR, peak rate, and rate at horizon; optionally overlay an empirical "
+        "Arps decline to compare the physics curve against a classic decline."
     )
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -314,7 +350,7 @@ with tab_curve:
                 line=dict(dash="dash"),
             )
         figr.update_layout(
-            title="Gas rate vs. time", xaxis_title="Years",
+            title="Gas Rate vs. Time", xaxis_title="Years",
             yaxis_title="Rate (Mscf/d)",
         )
         st.plotly_chart(theme.style_fig(figr, height=340), width="stretch")
@@ -329,10 +365,16 @@ with tab_curve:
                 line=dict(dash="dash"),
             )
         figc.update_layout(
-            title="Cumulative production", xaxis_title="Years",
+            title="Cumulative Production", xaxis_title="Years",
             yaxis_title="Cumulative (MMscf)",
         )
         st.plotly_chart(theme.style_fig(figc, height=340), width="stretch")
+
+    theme.source_note(
+        "bluebonnet 1-D scaling-solution forecast, scaled by movable gas in place (M) and "
+        "time-to-BDF (τ); optional Arps overlay (Arps 1945). Rate in Mscf/d, cumulative & "
+        "EUR in MMscf, time in years."
+    )
 
     _maybe_narrate(
         _api_key,
@@ -343,12 +385,22 @@ with tab_curve:
         "Interpret curve",
     )
 
+    theme.references(["bluebonnet"])
+
 # ============================================================================ RTA tab
 with tab_rta:
-    st.subheader("Rate-transient analysis — fit the physics model to a rate series")
+    st.subheader("Rate-Transient Analysis — Fit the Physics Model to a Rate Series")
     st.caption(
         "Fit bluebonnet's scaling-solution forecaster to a daily rate stream to back "
         "out the resource-in-place (M) and time-to-BDF (τ), then forecast EUR."
+    )
+    theme.how_to(
+        "- Inverts the physics curve: fit bluebonnet to a measured rate stream to estimate "
+        "resource-in-place (M) and time-to-BDF (τ), then forecast EUR.\n"
+        "- Pick the built-in synthetic series (known truth — the fit should recover it) or "
+        "upload your own CSV with a date column and a gas-rate column (Mscf/d).\n"
+        "- Set the forecast horizon; review the fitted M, τ, EUR, and fit RMSE plus the "
+        "cumulative- and rate-fit charts."
     )
 
     source = st.radio(
@@ -407,7 +459,7 @@ with tab_rta:
             name="Physics fit + forecast",
         )
         figh.update_layout(
-            title="RTA cumulative fit & forecast", xaxis_title="Years",
+            title="RTA Cumulative Fit & Forecast", xaxis_title="Years",
             yaxis_title="Cumulative (MMscf)",
         )
         st.plotly_chart(theme.style_fig(figh, height=340), width="stretch")
@@ -425,10 +477,15 @@ with tab_rta:
             name="Forecast rate",
         )
         figr.update_layout(
-            title="Rate: observed vs. forecast", xaxis_title="Years",
+            title="Rate: Observed vs. Forecast", xaxis_title="Years",
             yaxis_title="Rate (Mscf/d)",
         )
         st.plotly_chart(theme.style_fig(figr, height=320), width="stretch")
+        theme.source_note(
+            "Rate-transient fit of bluebonnet's scaling solution to the rate series; "
+            "fitted M and EUR in MMscf, τ in years, rate in Mscf/d, RMSE on cumulative "
+            "in MMscf."
+        )
 
         _maybe_narrate(
             _api_key,
@@ -440,9 +497,11 @@ with tab_rta:
             "Interpret RTA",
         )
 
+    theme.references(["bluebonnet"])
+
 # ========================================================================== Nodal tab
 with tab_nodal:
-    st.subheader("Nodal analysis — IPR ∩ VLP operating point")
+    st.subheader("Nodal Analysis — IPR ∩ VLP Operating Point")
     st.caption(
         "Systems (nodal) analysis at the bottom-hole node. The IPR (what the reservoir "
         "delivers) is Vogel below the bubble point + a straight-line PI above; the VLP "
@@ -453,6 +512,15 @@ with tab_nodal:
         "synthetic",
         "Physics-modeled — standard nodal correlations (Vogel / Hagedorn-Brown / "
         "Beggs-Brill) on illustrative inputs.",
+    )
+    theme.how_to(
+        "- Finds the well's natural operating point where inflow (IPR) meets outflow "
+        "(VLP) at the bottom-hole node.\n"
+        "- Set the reservoir (pressure, bubble point, IPR model & flow test or PI), the "
+        "tubing (ID, depth, VLP correlation), and fluid (GLR, water cut, wellhead "
+        "pressure) inputs.\n"
+        "- Read the operating rate, operating BHP, and AOF; if the IPR and VLP don't "
+        "intersect, the well needs artificial lift — see the Artificial Lift tab."
     )
 
     c1, c2, c3 = st.columns(3)
@@ -539,7 +607,7 @@ with tab_nodal:
                         line=dict(width=2)),
         )
     fig.update_layout(
-        title="Nodal plot — pressure vs. rate at the bottom-hole node",
+        title="Nodal Plot — Pressure vs. Rate at the Bottom-Hole Node",
         xaxis_title="Liquid rate q (STB/d)", yaxis_title="Flowing BHP, pwf (psia)",
     )
     st.plotly_chart(theme.style_fig(fig, height=420), width="stretch")
@@ -549,6 +617,10 @@ with tab_nodal:
         "multiphase pressure traverse, segmented over the tubing. Correlations are "
         "standard textbook forms (Vogel 1968; Hagedorn–Brown 1965; Beggs–Brill 1973) on "
         "illustrative single-well inputs — not a tuned field match."
+    )
+    theme.source_note(
+        "Operating point = intersection of the Vogel IPR (inflow) and Hagedorn-Brown / "
+        "Beggs-Brill VLP (outflow); BHP in psia, liquid rate in STB/d."
     )
 
     _maybe_narrate(
@@ -561,9 +633,11 @@ with tab_nodal:
         "Interpret nodal",
     )
 
+    theme.references(["vogel", "hagedorn_brown", "beggs_brill", "nodal"])
+
 # ============================================================== Artificial Lift tab
 with tab_lift:
-    st.subheader("Artificial-lift design — ESP sizing & gas-lift")
+    st.subheader("Artificial-Lift Design — ESP Sizing & Gas-Lift")
     st.caption(
         "Design a lift system to hit a target rate the well can't reach naturally. ESP: "
         "total dynamic head, stages from a representative pump curve, drive frequency via "
@@ -573,6 +647,14 @@ with tab_lift:
         "synthetic",
         "Physics-modeled — standard nodal correlations (Vogel / Hagedorn-Brown / "
         "Beggs-Brill) on illustrative inputs.",
+    )
+    theme.how_to(
+        "- Sizes a lift system to reach a target rate the well can't make naturally.\n"
+        "- Set the reservoir & flow test (IPR), the tubing (ID, depth), the fluid (water "
+        "cut, GLR, viscosity, wellhead pressure), and the target rate, ESP drive "
+        "frequency, and fluid viscosity below.\n"
+        "- The ESP design returns stages, frequency, total dynamic head (TDH), and brake "
+        "power; the gas-lift sweep finds the injection GLR that maximizes rate."
     )
 
     c1, c2, c3 = st.columns(3)
@@ -612,7 +694,7 @@ with tab_lift:
         frequency_hz=float(l_freq), fluid_viscosity_cp=float(l_visc),
     )
 
-    st.markdown("**ESP design**")
+    st.markdown("**ESP Design**")
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Stages", f"{esp.stages:,d}")
     k2.metric("Frequency", f"{esp.frequency_hz:.0f} Hz")
@@ -656,7 +738,7 @@ with tab_lift:
             marker=dict(size=12, color=theme.GREEN, symbol="x", line=dict(width=2)),
         )
         figp.update_layout(
-            title="ESP pump curve (representative)",
+            title="ESP Pump Curve (Representative)",
             xaxis_title="Total fluid (bpd)", yaxis_title="Head per stage (ft)",
         )
         st.plotly_chart(theme.style_fig(figp, height=340), width="stretch")
@@ -673,7 +755,7 @@ with tab_lift:
             marker=dict(size=12, color=theme.GREEN, symbol="x", line=dict(width=2)),
         )
         figg.update_layout(
-            title="Gas-lift injection sweep",
+            title="Gas-Lift Injection Sweep",
             xaxis_title="Injection GLR added (scf/STB)",
             yaxis_title="Operating rate q (STB/d)",
         )
@@ -686,6 +768,11 @@ with tab_lift:
         f"to {gl.best.q_op_stb_d:,.0f} STB/d (~{gl.inj_rate_mscf_d_at_best:,.0f} Mscf/d "
         "injection). Illustrative pump curve and fluid — not a vendor catalog match."
     )
+    theme.source_note(
+        "ESP staging via centrifugal-pump affinity laws (Q∝N, H∝N², P∝N³) on TDH; design "
+        "point = total fluid (bpd) vs. head-per-stage (ft). Stages count, TDH in ft, brake "
+        "power in hp, rate in STB/d."
+    )
 
     _maybe_narrate(
         _api_key,
@@ -697,6 +784,8 @@ with tab_lift:
         f"{gl.best.inj_glr_scf_stb:.0f} scf/STB for {gl.best.q_op_stb_d:.0f} STB/d.",
         "Interpret lift design",
     )
+
+    theme.references(["esp_affinity"])
 
 st.markdown("---")
 st.caption(
