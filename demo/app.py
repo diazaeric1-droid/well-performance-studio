@@ -38,19 +38,77 @@ _sh_heal.rmtree(os.path.join(_HERE, "__pycache__"), ignore_errors=True)
 for _stale in ("theme", "fleet_registry"):
     sys.modules.pop(_stale, None)
 
+import dataclasses
+
 import theme  # vendored, next to this file
 from src import __version__
-from src.curves import CurveInputs, arps_overlay, production_curve
+from src.curves import CurveInputs, arps_overlay
+from src.curves import production_curve as _production_curve
 from src.lift import design_esp, gas_lift_sweep
 from src.nodal import (
     VLPInputs,
     operating_point,
     straight_line_ipr,
-    vlp_curve,
     vogel_ipr,
 )
-from src.pvt import PVTInputs, bubble_point, props_at_pressure, pvt_table
-from src.rta import fit_rta, parse_rate_csv, synthetic_series
+from src.nodal import vlp_curve as _vlp_curve
+from src.pvt import PVTInputs
+from src.pvt import bubble_point as _bubble_point
+from src.pvt import props_at_pressure as _props_at_pressure
+from src.pvt import pvt_table as _pvt_table
+from src.rta import fit_rta as _fit_rta
+from src.rta import parse_rate_csv, synthetic_series
+
+# --------------------------------------------------------------------------- caching
+# The expensive deterministic computations (bluebonnet PVT/curve/RTA builds and the
+# multiphase VLP pressure march) recompute on every Streamlit rerun — e.g. each slider
+# nudge. Wrap them in `st.cache_data` so identical inputs are served from cache.
+#
+# The input dataclasses (PVTInputs, CurveInputs, VLPInputs) are NOT hashable (default
+# @dataclass sets __hash__ = None), and the RTA input is a mutable DataFrame, so Streamlit
+# cannot key on them directly. We register `hash_funcs` that map each input type to a
+# hashable, value-based representation (dataclasses.astuple / a pandas content hash) so the
+# cache key tracks the ACTUAL input values — never object identity or a mutable arg. The
+# wrapped functions are pure (deterministic, no I/O), so results are identical to uncached.
+def _hash_inputs(obj) -> tuple:
+    """Value-based hash key for the (frozen-in-spirit) input dataclasses."""
+    return dataclasses.astuple(obj)
+
+
+def _hash_series(df: pd.DataFrame) -> bytes:
+    """Content hash for a rate-series DataFrame (so identical data -> cache hit)."""
+    return pd.util.hash_pandas_object(df, index=True).values.tobytes()
+
+
+@st.cache_data(show_spinner=False, hash_funcs={PVTInputs: _hash_inputs})
+def pvt_table(inp: PVTInputs) -> pd.DataFrame:
+    return _pvt_table(inp)
+
+
+@st.cache_data(show_spinner=False, hash_funcs={PVTInputs: _hash_inputs})
+def bubble_point(inp: PVTInputs) -> float:
+    return _bubble_point(inp)
+
+
+@st.cache_data(show_spinner=False, hash_funcs={PVTInputs: _hash_inputs})
+def props_at_pressure(inp: PVTInputs, pressure: float) -> dict:
+    return _props_at_pressure(inp, pressure)
+
+
+@st.cache_data(show_spinner=False, hash_funcs={CurveInputs: _hash_inputs})
+def production_curve(inp: CurveInputs) -> pd.DataFrame:
+    return _production_curve(inp)
+
+
+@st.cache_data(show_spinner=False, hash_funcs={VLPInputs: _hash_inputs})
+def vlp_curve(inp: VLPInputs, q_max: float = 4000.0, n: int = 28):
+    return _vlp_curve(inp, q_max=q_max, n=n)
+
+
+@st.cache_data(show_spinner=False, hash_funcs={pd.DataFrame: _hash_series})
+def fit_rta(series: pd.DataFrame, horizon_years: float = 15.0):
+    return _fit_rta(series, horizon_years=horizon_years)
+
 
 theme.setup_page("Well Performance Studio", icon="🧪")
 theme.suite_nav("wps")
