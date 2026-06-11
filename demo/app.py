@@ -621,6 +621,13 @@ with tab_nodal:
         xaxis_title="Liquid rate q (STB/d)", yaxis_title="Flowing BHP, pwf (psia)",
     )
     st.plotly_chart(theme.style_fig(fig, height=420), width="stretch")
+    _nodal_df = pd.DataFrame({
+        "rate_stb_d_ipr": ipr.q, "pwf_psia_ipr": ipr.pwf,
+        "rate_stb_d_vlp": list(vlp.q) + [None] * max(0, len(ipr.q) - len(vlp.q)),
+        "pwf_psia_vlp": list(vlp.pwf) + [None] * max(0, len(ipr.q) - len(vlp.q)),
+    })
+    st.download_button("⬇ Download results (CSV)", data=_nodal_df.to_csv(index=False),
+                       file_name="wps_results.csv", mime="text/csv")
     st.caption(
         f"IPR: {'Vogel (below Pb) + linear PI (above)' if ipr.method == 'vogel' else 'straight-line PI'} "
         f"· VLP: {('Hagedorn–Brown' if n_corr == 'hagedorn_brown' else 'Beggs–Brill')} "
