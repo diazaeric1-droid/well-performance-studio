@@ -292,8 +292,15 @@ def _segment_props(
     rs = min(rs, float(inp.glr_scf_stb) / max(1.0 - fw, 1e-6))  # cannot exceed produced
     bo = _bo_standing(rs, t_f, api, gas_sg)
     sg_o = _oil_sg(api)
-    # oil mass = stock-tank oil + dissolved gas, per STB of oil
-    rho_o = (sg_o * WATER_DENSITY_SC + rs * gas_sg * AIR_MW / 379.4) / bo
+    # In-situ (live/saturated) oil density, lbm/ft^3. Stock-tank-oil mass per reservoir
+    # volume is (sg_o * 62.4) / Bo; the dissolved-gas mass per STB is rs*gas_sg*MW_air/379.4
+    # [lbm/STB], which must be divided by the reservoir volume per STB = Bo * 5.615 ft^3/STB
+    # (the bbl->ft^3 conversion). Algebraically identical to the textbook standard form
+    #   rho_o = (62.4*gamma_o + 0.0136*Rs*gamma_g) / Bo      [lbm/ft^3]
+    # since MW_air/379.4/5.615 = 0.01360 (the published 0.0136 already bundles the 5.615).
+    # Validated: API=35, Rs=600 scf/STB, gamma_g=0.75, Bo=1.30 -> 45.50 lbm/ft^3, matching
+    # the textbook formula (McCain, *The Properties of Petroleum Fluids* 2nd ed.; Standing).
+    rho_o = (sg_o * WATER_DENSITY_SC + rs * gas_sg * AIR_MW / 379.4 / 5.615) / bo
     rho_w = float(inp.water_sg) * WATER_DENSITY_SC
     rho_l = (1.0 - fw) * rho_o + fw * rho_w
 
