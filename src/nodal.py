@@ -269,6 +269,7 @@ class _LocalProps:
     vsl: float  # superficial liquid velocity, ft/s
     vsg: float  # superficial gas velocity, ft/s
     lambda_l: float  # no-slip liquid holdup (input volume fraction)
+    p_psia: float  # local segment pressure, psia (for the HB pressure-ratio group)
 
 
 def _segment_props(
@@ -337,6 +338,7 @@ def _segment_props(
     return _LocalProps(
         rho_l=rho_l, rho_g=rho_g, mu_l=mu_l, mu_g=mu_g,
         sigma_l=sigma_l, vsl=vsl, vsg=vsg, lambda_l=float(np.clip(lambda_l, 0.0, 1.0)),
+        p_psia=p,
     )
 
 
@@ -393,7 +395,14 @@ def _grad_hagedorn_brown(lp: _LocalProps, inp: VLPInputs) -> float:
             1.0 - 10.0147 * nl + 33.8696 * nl ** 2 + 277.2817 * nl ** 3
         )
         cnl = float(np.clip(cnl, 0.0, 0.10))
-        x1 = nlv / ngv ** 0.575 * 14.7 ** 0.10 * cnl / nd
+        # Hagedorn-Brown primary holdup group (Brown, *The Technology of Artificial Lift*,
+        # Vol. 1; Pengtools/Economides):
+        #   X1 = (Nlv / Ngv^0.575) * (p / 14.7)^0.10 * (CNL / Nd)
+        # The (p/14.7)^0.10 factor is the LOCAL pressure normalized to standard pressure
+        # (14.7 psia); it must use the segment pressure, not the bare constant 14.7^0.10
+        # (which would ignore pressure entirely). At p = 14.7 psia this factor is 1.0.
+        p_ratio = (lp.p_psia / 14.7) ** 0.10
+        x1 = nlv / ngv ** 0.575 * p_ratio * cnl / nd
         x1 = max(x1, 1e-12)
         # HL/psi correlating group (Brown's curve fit)
         hl_psi = np.sqrt(
