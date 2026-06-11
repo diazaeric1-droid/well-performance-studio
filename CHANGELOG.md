@@ -3,6 +3,33 @@
 All notable changes to Well Performance Studio are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/); versioning is semver.
 
+## [0.2.2] — 2026-06-11
+### Fixed
+- **Three nodal/PVT physics corrections** (validated against published worked examples;
+  the Vogel nodal AOF check is unmoved at 1095.5 vs the published ~1095):
+  - **Live-oil density** — added the missing bbl→ft³ (5.615) conversion on the
+    dissolved-gas mass term, so the live/saturated oil density (and the VLP hydrostatic
+    head) is no longer inflated ~1.4–1.7× (previously produced oil denser than water). Now
+    algebraically identical to the textbook `rho_o = (62.4·γ_o + 0.0136·Rs·γ_g)/Bo`
+    (McCain/Standing): API=35, Rs=600 scf/STB, γ_g=0.75, Bo=1.30 → 45.50 lbm/ft³.
+  - **Hagedorn–Brown holdup** — the primary holdup correlating group used the bare
+    constant `14.7^0.10` where the local pressure ratio `(p/14.7)^0.10` belongs (Brown,
+    *The Technology of Artificial Lift*). The segment pressure is now threaded into the
+    holdup function (added to `_LocalProps`); the term is 1.0 at standard pressure.
+  - **Gas z-factor** — the Brill & Beggs (1974) high-pressure B-term is `0.32·Ppr⁶/…`,
+    not `Ppr²`; the `Ppr⁶` term restores the z upturn at high pseudo-reduced pressure.
+    Now reproduces the verbatim published correlation (Ppr=2.0, Tpr=1.5 → z=0.8234,
+    within ~3% of the Standing–Katz chart).
+### Added
+- `tests/test_worked_examples.py` — published-value pins for the oil-density, z-factor,
+  and Standing Rs/Bo examples, plus the Hagedorn–Brown pressure-ratio behavior.
+### Changed
+- **Caching** — the expensive deterministic computations invoked by the app
+  (`pvt_table`, `bubble_point`, `props_at_pressure`, `production_curve`, `vlp_curve`,
+  `fit_rta`) are wrapped in `st.cache_data` with value-based `hash_funcs` for the
+  (unhashable) input dataclasses and the rate-series DataFrame, so reruns no longer
+  recompute on every slider nudge. `src/` stays Streamlit-free; results are unchanged.
+
 ## [0.2.1] — 2026-06-07
 ### Fixed
 - CI smoke workflow now installs `pytest` (the unit-tests step was failing with `pytest: command not found`).

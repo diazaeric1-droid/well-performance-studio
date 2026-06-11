@@ -15,4 +15,4 @@ self-contained pure-numpy/scipy reimplementations of the standard textbook corre
 bluebonnet dependency.
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
