@@ -205,9 +205,12 @@ def _z_factor(p_psia: float, t_f: float, gas_sg: float) -> float:
     t_r = max(t_r, 1.05)  # keep the fit in its valid band
     a = 1.39 * (t_r - 0.92) ** 0.5 - 0.36 * t_r - 0.101
     e = 9.0 * (t_r - 1.0)
+    # Brill & Beggs (1974) B term. The high-pressure term is 0.32 * Ppr^6 / 10^(9(Tpr-1)),
+    # NOT Ppr^2 -- this Ppr^6 term produces the z upturn at high pseudo-reduced pressure
+    # (verbatim per the published correlation; cf. f0nzie/zFactor R/Beggs-Brill.R, Pengtools).
     b = (0.62 - 0.23 * t_r) * p_r + (
         0.066 / (t_r - 0.86) - 0.037
-    ) * p_r ** 2 + 0.32 * p_r ** 2 / (10.0 ** e)
+    ) * p_r ** 2 + 0.32 * p_r ** 6 / (10.0 ** e)
     c = 0.132 - 0.32 * np.log10(t_r)
     d = 10.0 ** (0.3106 - 0.49 * t_r + 0.1824 * t_r ** 2)
     z = a + (1.0 - a) * np.exp(-b) + c * p_r ** d
